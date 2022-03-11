@@ -81,7 +81,7 @@ RegisterNetEvent('weapon:client:AddAmmo', function(type, amount, itemData)
             local total = GetAmmoInPedWeapon(ped, weapon)
             local found, maxAmmo = GetMaxAmmo(ped, weapon)
             if total < maxAmmo then
-                QBCore.Functions.Progressbar("taking_bullets", "Loading Bullets", math.random(4000, 6000), false, true, {
+                QBCore.Functions.Progressbar("taking_bullets", Lang:t('info.loading_bullets'), math.random(4000, 6000), false, true, {
                     disableMovement = false,
                     disableCarMovement = false,
                     disableMouse = false,
@@ -93,19 +93,19 @@ RegisterNetEvent('weapon:client:AddAmmo', function(type, amount, itemData)
                         TriggerServerEvent("weapons:server:AddWeaponAmmo", CurrentWeaponData, total + amount)
                         TriggerServerEvent('QBCore:Server:RemoveItem', itemData.name, 1, itemData.slot)
                         TriggerEvent('inventory:client:ItemBox', QBCore.Shared.Items[itemData.name], "remove")
-                        TriggerEvent('QBCore:Notify', 'Reloaded', "success")
+                        TriggerEvent('QBCore:Notify', Lang:t('success.reloaded'), "success")
                     end
                 end, function()
-                    QBCore.Functions.Notify("Canceled", "error")
+                    QBCore.Functions.Notify(Lang:t('error.canceled'), "error")
                 end)
             else
-                QBCore.Functions.Notify("Max Ammo Capacity", "error")
+                QBCore.Functions.Notify(Lang:t('error.max_ammo'), "error")
             end
         else
-            QBCore.Functions.Notify("You have no weapon.", "error")
+            QBCore.Functions.Notify(Lang:t('error.no_weapon'), "error")
         end
     else
-        QBCore.Functions.Notify("You have no weapon.", "error")
+        QBCore.Functions.Notify(Lang:t('error.no_weapon'), "error")
     end
 end)
 
@@ -119,11 +119,11 @@ RegisterNetEvent("weapons:client:EquipAttachment", function(ItemData, attachment
             if WeaponAttachments[WeaponData.name][attachment]['item'] == ItemData.name then
                 TriggerServerEvent("weapons:server:EquipAttachment", ItemData, CurrentWeaponData, WeaponAttachments[WeaponData.name][attachment])
             else
-                QBCore.Functions.Notify("This weapon does not support this attachment.", "error")
+                QBCore.Functions.Notify(Lang:t('error.no_support_attachment'), "error")
             end
         end
     else
-        QBCore.Functions.Notify("You dont have a weapon in your hand.", "error")
+        QBCore.Functions.Notify(Lang:t('error.no_weapon_in_hand'), "error")
     end
 end)
 
@@ -194,7 +194,7 @@ CreateThread(function()
                     else
                         if weapon ~= -1569615261 then
                             TriggerEvent('inventory:client:CheckWeapon', QBCore.Shared.Weapons[weapon]["name"])
-                            QBCore.Functions.Notify("This weapon is broken and can not be used.", "error")
+                            QBCore.Functions.Notify(Lang:t('error.weapon_broken'), "error")
                             MultiplierAmount = 0
                         end
                     end
