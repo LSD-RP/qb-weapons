@@ -46,6 +46,11 @@ QBCore.Functions.CreateCallback("weapon:server:GetWeaponAmmo", function(source, 
         if Player then
             local ItemData = Player.Functions.GetItemBySlot(WeaponData.slot)
             if ItemData then
+                if ItemData.info.ammo == nil and ItemData.name == "weapon_petrolcan" then
+                    ItemData.info.ammo = 4500
+                    Player.PlayerData.items[WeaponData.slot].info["ammo"] = 4500
+                    Player.Functions.SetInventory(Player.PlayerData.items, true)
+                end
                 retval = ItemData.info.ammo and ItemData.info.ammo or 0
             end
         end
@@ -77,6 +82,85 @@ QBCore.Functions.CreateCallback('weapons:server:RemoveAttachment', function(sour
     else
         cb(false)
     end
+end)
+
+
+RegisterNetEvent('qb-weapons:server:repairCurrentWeapon',function(data)
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    local minute = 60
+    local Timeout = math.random(5 * minute, 10 * minute)
+    local WeaponData = QBCore.Shared.Weapons[GetHashKey(data.wepData.name)]
+    local WeaponClass = (QBCore.Shared.SplitStr(WeaponData.ammotype, "_")[2]):lower()
+    if Player.PlayerData.items[data.wepData.slot] then
+        if Player.PlayerData.items[data.wepData.slot].info.quality then
+            if Player.PlayerData.items[data.wepData.slot].info.quality ~= 100 then
+                if Player.Functions.RemoveMoney('cash', Config.WeaponRepairCosts[WeaponClass]) then
+                    Player.Functions.RemoveItem(data.wepData.name, 1, data.wepData.slot)
+                    TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items[data.wepData.name], "remove")
+                    TriggerClientEvent("inventory:client:CheckWeapon", src, data.wepData.name)
+                    exports.oxmysql:executeSync('INSERT into weapon_repairs (citizenid, weapon, time) VALUES (?, ?, ?)', {
+                        Player.PlayerData.citizenid,
+                        json.encode(Player.PlayerData.items[data.wepData.slot]),
+                        os.time() + Timeout
+                    })
+                    SetTimeout(Timeout * 1000, function()
+                        TriggerEvent('qb-phone:server:sendNewMailToOffline', Player.PlayerData.citizenid, {
+                            sender = "Tyrone",
+                            subject = "Repair",
+                            message = "Your "..WeaponData.label.." is repaired u can pick it up at the location. <br><br> Peace out madafaka"
+                        })
+                    end)
+                else
+                    TriggerClientEvent("QBCore:Notify", src, "You do not have enough money.", "error")
+                    return
+                end
+            else
+                TriggerClientEvent("QBCore:Notify", src, "This weapon is not dammaged..", "error")
+                return
+            end
+        else
+            TriggerClientEvent("QBCore:Notify", src, "This weapon is not dammaged..", "error")
+            return
+        end
+    else
+        -- shouldnt ever reach here due to client side checks
+        TriggerClientEvent('QBCore:Notify', src, "You don't have a weapon in your hands..", "error")
+        TriggerClientEvent('weapons:client:SetCurrentWeapon', src, {}, false)
+        return
+    end
+end)
+
+RegisterNetEvent('qb-weapons:server:pickupFixed', function()
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    local items = exports.oxmysql:executeSync('SELECT * FROM weapon_repairs WHERE citizenid LIKE @citizenid', {['@citizenid'] = Player.PlayerData.citizenid})
+    if items[1] ~= nil then
+        local i = 1
+        while items[i] ~= nil do
+            local wep = json.decode(items[i].weapon)
+            local reward = json.decode(items[i].reward)
+            local time = items[i].time
+            if time - os.time() < 0 then
+                -- repaired
+                local weaponItem = {}
+                weaponItem.name = wep.name
+                weaponItem.info = wep.info
+                weaponItem.info.quality = 100
+                Player.Functions.AddItem(weaponItem.name, 1, false, weaponItem.info)
+                TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items[weaponItem.name], "add")
+                exports.oxmysql:execute('DELETE FROM weapon_repairs WHERE time = @time', {['@time'] = time})
+            else
+                -- print(time - os.time())
+                TriggerClientEvent('QBCore:Notify', src, 'We need more time to finish fising your ' .. QBCore.Shared.Items[wep.name].label)
+            end
+            i = i + 1
+        end
+    else
+        -- no items melting
+        TriggerClientEvent('QBCore:Notify', src, 'You do not have any items being repaired')
+    end
+    
 end)
 
 QBCore.Functions.CreateCallback("weapons:server:RepairWeapon", function(source, cb, RepairPoint, data)

@@ -145,6 +145,12 @@ CreateThread(function()
                 MultiplierAmount = 0
             end
         end
+        local currentWeapon = GetSelectedPedWeapon(ped)
+        if currentWeapon == 883325847 and (IsControlJustReleased(0, 24) or IsDisabledControlJustReleased(0, 24)) then
+            local weapon = GetSelectedPedWeapon(ped)
+            local ammo = GetAmmoInPedWeapon(ped, weapon)
+            TriggerServerEvent("weapons:server:UpdateWeaponAmmo", CurrentWeaponData, tonumber(ammo))
+        end
         Wait(1)
     end
 end)
@@ -199,6 +205,8 @@ CreateThread(function()
     end
 end)
 
+local headerOpen = false
+
 CreateThread(function()
     while true do
         if LocalPlayer.state.isLoggedIn then
@@ -209,52 +217,72 @@ CreateThread(function()
                 local distance = #(pos - data.coords)
                 if distance < 10 then
                     inRange = true
-                    if distance < 1 then
-                        if data.IsRepairing then
-                            if data.RepairingData.CitizenId ~= PlayerData.citizenid then
-                                DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, 'The repairshop in this moment is ~r~NOT~w~ usable.')
-                            else
-                                if not data.RepairingData.Ready then
-                                    DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, 'Your weapon will be repaired.')
-                                else
-                                    DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, '[E] - Take Weapon Back')
-                                end
-                            end
-                        else
-                            if CurrentWeaponData and next(CurrentWeaponData) then
-                                if not data.RepairingData.Ready then
-                                    local WeaponData = QBCore.Shared.Weapons[GetHashKey(CurrentWeaponData.name)]
-                                    local WeaponClass = (QBCore.Shared.SplitStr(WeaponData.ammotype, "_")[2]):lower()
-                                    DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, '[E] Repair Weapon, ~g~$'..Config.WeaponRepairCosts[WeaponClass]..'~w~')
-                                    if IsControlJustPressed(0, 38) then
-                                        QBCore.Functions.TriggerCallback('weapons:server:RepairWeapon', function(HasMoney)
-                                            if HasMoney then
-                                                CurrentWeaponData = {}
-                                            end
-                                        end, k, CurrentWeaponData)
-                                    end
-                                else
-                                    if data.RepairingData.CitizenId ~= PlayerData.citizenid then
-                                        DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, 'The repairshop is this moment ~r~NOT~w~ usable.')
-                                    else
-                                        DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, '[E] - Take Weapon Back')
-                                        if IsControlJustPressed(0, 38) then
-                                            TriggerServerEvent('weapons:server:TakeBackWeapon', k, data)
-                                        end
-                                    end
-                                end
-                            else
-                                if data.RepairingData.CitizenId == nil then
-                                    DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, 'You dont have a weapon in your hands.')
-                                elseif data.RepairingData.CitizenId == PlayerData.citizenid then
-                                    DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, '[E] - Take Weapon Back')
-                                    if IsControlJustPressed(0, 38) then
-                                        TriggerServerEvent('weapons:server:TakeBackWeapon', k, data)
-                                    end
-                                end
-                            end
-                        end
+                    if distance < 1 and not headerOpen then
+                        headerOpen = true
+                        exports['qb-menu']:showHeader({
+                            {
+                                header = 'Weapon Repair Shop',
+                                txt = 'Open Shop',
+                                params = {
+                                    event = "qb-weapons:client:requestRepairMenu"
+                                }
+                            }
+                        })
                     end
+                    if distance > 1 and headerOpen then
+                        headerOpen = false
+                        exports['qb-menu']:closeMenu()
+                    end
+                
+                    if distance < 1 then
+                        DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, 'Weapon Repair Shop')
+                    end
+                    -- if distance < 1 then
+                    --     if data.IsRepairing then
+                    --         if data.RepairingData.CitizenId ~= PlayerData.citizenid then
+                    --             DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, 'The repairshop in this moment is ~r~NOT~w~ usable.')
+                    --         else
+                    --             if not data.RepairingData.Ready then
+                    --                 DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, 'Your weapon will be repaired.')
+                    --             else
+                    --                 DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, '[E] - Take Weapon Back')
+                    --             end
+                    --         end
+                    --     else
+                    --         if CurrentWeaponData and next(CurrentWeaponData) then
+                    --             if not data.RepairingData.Ready then
+                    --                 local WeaponData = QBCore.Shared.Weapons[GetHashKey(CurrentWeaponData.name)]
+                    --                 local WeaponClass = (QBCore.Shared.SplitStr(WeaponData.ammotype, "_")[2]):lower()
+                    --                 DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, '[E] Repair Weapon, ~g~$'..Config.WeaponRepairCosts[WeaponClass]..'~w~')
+                    --                 if IsControlJustPressed(0, 38) then
+                    --                     QBCore.Functions.TriggerCallback('weapons:server:RepairWeapon', function(HasMoney)
+                    --                         if HasMoney then
+                    --                             CurrentWeaponData = {}
+                    --                         end
+                    --                     end, k, CurrentWeaponData)
+                    --                 end
+                    --             else
+                    --                 if data.RepairingData.CitizenId ~= PlayerData.citizenid then
+                    --                     DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, 'The repairshop is this moment ~r~NOT~w~ usable.')
+                    --                 else
+                    --                     DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, '[E] - Take Weapon Back')
+                    --                     if IsControlJustPressed(0, 38) then
+                    --                         TriggerServerEvent('weapons:server:TakeBackWeapon', k, data)
+                    --                     end
+                    --                 end
+                    --             end
+                    --         else
+                    --             if data.RepairingData.CitizenId == nil then
+                    --                 DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, 'You dont have a weapon in your hands.')
+                    --             elseif data.RepairingData.CitizenId == PlayerData.citizenid then
+                    --                 DrawText3Ds(data.coords.x, data.coords.y, data.coords.z, '[E] - Take Weapon Back')
+                    --                 if IsControlJustPressed(0, 38) then
+                    --                     TriggerServerEvent('weapons:server:TakeBackWeapon', k, data)
+                    --                 end
+                    --             end
+                    --         end
+                    --     end
+                    -- end
                 end
             end
             if not inRange then
@@ -263,4 +291,52 @@ CreateThread(function()
         end
         Wait(3)
     end
+end)
+
+RegisterNetEvent('qb-weapons:client:requestRepair')
+AddEventHandler('qb-weapons:client:requestRepair', function(wepData)
+    TriggerServerEvent('qb-weapons:server:repairCurrentWeapon', wepData)
+end)
+
+RegisterNetEvent('qb-weapons:client:requestRepairMenu')
+AddEventHandler('qb-weapons:client:requestRepairMenu', function()
+    local WeaponData = nil
+    if CurrentWeaponData then
+        WeaponData = QBCore.Shared.Weapons[GetHashKey(CurrentWeaponData.name)]
+    end
+    local WeaponClass = nil
+    if WeaponData and CurrentWeaponData.name then
+        if WeaponData.ammotype then
+            WeaponClass = (QBCore.Shared.SplitStr(WeaponData.ammotype, "_")[2]):lower()
+        end
+    end
+    local repairShop = {
+        {
+            header = 'Weapon Repairs',
+            isMenuHeader = true,
+        }
+    }
+    if WeaponClass then
+        repairShop[#repairShop + 1] = {
+            header = 'Repair Weapon',
+            txt = 'Repair your current weapon: $' .. Config.WeaponRepairCosts[WeaponClass],
+            params = {
+                event = "qb-weapons:client:requestRepair",
+                args = {
+                    wepData = CurrentWeaponData
+                }
+            }
+        }
+    end
+    repairShop[#repairShop + 1] = {
+        header = "Pickup Repaired Weapon",
+        txt = "",
+        params = {
+            isServer = true,
+            event = "qb-weapons:server:pickupFixed",
+            args = {}
+        }
+    }
+    exports['qb-menu']:openMenu(repairShop)    
+
 end)
